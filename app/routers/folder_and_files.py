@@ -4,12 +4,14 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, UploadFile, Form, File, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlmodel import select
 
 from app.db import SessionDep
 from app.models.database.folder_and_files import Folder, Document
 from app.models.public.folder_and_files import FolderPublic, FolderCreate, FolderUpdate, DocumentCreate, DocumentPublic, \
     DocumentUpdate
+from app.internals.folder_and_files import stream_progress
 
 router = APIRouter(
     tags=['folder_upload']
@@ -20,14 +22,15 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @router.post('/folder-upload')
+@router.post('/folder-upload/{folder_id}')
 async def folder_upload(
     paths: Annotated[list[str], Form(description="Relative paths of the files, ordered same as files.")],
     files: Annotated[list[UploadFile], File(description="Upload a folder and use javascript to list out all the files "
                                                         "inside that folder.")],
-    session: SessionDep
+    session: SessionDep,
+    folder_id: int | None = None
 ):
-    print("files", files)
-    return {"success": "success"}
+    return StreamingResponse(stream_progress(paths, files, session, folder_id))
 
 
 @router.post('/folder-create', response_model=FolderPublic)
