@@ -8,3 +8,5 @@ database.db
 .pyc
 .idea
 uploads
+node_modules
+.next
