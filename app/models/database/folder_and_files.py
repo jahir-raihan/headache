@@ -1,14 +1,34 @@
-from pydantic import Field
-from sqlmodel import Relationship
-from models.public.folder_and_files import FolderBase
+from typing import Optional
+from sqlmodel import Field, Relationship
+from app.models.public.folder_and_files import FolderBase, DocumentBase
 
 
 class Folder(FolderBase, table=True):
+    __tablename__ = "folder"
+    
     id: int | None = Field(default=None, primary_key=True)
-    parent_id: int | None = Field(default=None, foreign_key="folder.id")
+    parent_id: int | None = Field(
+        default=None,
+        foreign_key="folder.id",
+        nullable=True
+    )
 
-    # Define relationship for parent folder
-    parent: "Folder" | None = Relationship(back_populates="subfolders", sa_relationship_kwargs={"remote_side": "Folder.id"})
+    # For self-referential relationships
+    _remote_side = []
 
-    # Define relationship for subfolders
-    subfolders: list["Folder"] = Relationship(back_populates="parent")
+    parent: Optional['Folder'] = Relationship(
+        back_populates='subfolders',
+        sa_relationship_kwargs={
+            "remote_side": lambda: [Folder.id]  # to avoid circular reference
+        }
+    )
+    subfolders: list['Folder'] = Relationship(back_populates='parent')
+    documents: list["Document"] = Relationship(back_populates="folder")
+
+
+class Document(DocumentBase, table=True):
+    __tablename__ = "documents"
+    
+    id: int | None = Field(default=None, primary_key=True)
+    folder_id: int | None = Field(default=None, foreign_key="folder.id", nullable=True)
+    folder: Folder | None = Relationship(back_populates="documents")
