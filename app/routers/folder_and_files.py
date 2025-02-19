@@ -8,7 +8,8 @@ from sqlmodel import select
 
 from app.db import SessionDep
 from app.models.database.folder_and_files import Folder, Document
-from app.models.public.folder_and_files import FolderPublic, FolderCreate, FolderUpdate, DocumentCreate, DocumentPublic
+from app.models.public.folder_and_files import FolderPublic, FolderCreate, FolderUpdate, DocumentCreate, DocumentPublic, \
+    DocumentUpdate
 
 router = APIRouter(
     tags=['folder_upload']
@@ -30,19 +31,22 @@ async def folder_upload(
 
 
 @router.post('/folder-create', response_model=FolderPublic)
-async def folder_create(folder_data: FolderCreate, session: SessionDep):
+@router.post('/folder-create/{folder_id}', response_model=FolderPublic)
+async def folder_create(folder_data: FolderCreate, session: SessionDep, folder_id: int | None = None):
     """
     Endpoint for creating folder.
 
     :param folder_data:
         - name:
         - parent_id:
-    :param session: 
+    :param session:
+    :param folder_id:
     :return FolderPublic:
     """
 
     # Validate and serialize data
     db_folder = Folder.model_validate(folder_data)
+    db_folder.parent_id = folder_id
 
     # Commit into db
     session.add(db_folder)
@@ -133,6 +137,53 @@ async def file_create(file: UploadFile, session: SessionDep, folder_id: int | No
     session.refresh(new_file)
 
     return new_file
+
+
+@router.post('/file-update/{file_id}', response_model=DocumentPublic)
+async def file_update(file_data: DocumentUpdate, session: SessionDep, file_id: int | None = None):
+    """
+    Endpoint for updating parent id of a file / changing its name.
+
+    :param file_data:
+    :param session:
+    :param file_id:
+    :return:
+    """
+
+    file_db = session.get(Document, file_id)
+    if not file_db:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Dump and serialize updated data
+    update_data = file_data.model_dump(exclude_unset=True)
+    file_db.sqlmodel_update(update_data)
+
+    # Commit changes into db
+    session.add(file_db)
+    session.commit()
+    session.refresh(file_db)
+
+    return file_db
+
+
+@router.delete('/file-delete/{file_id}')
+async def file_delete(file_id: int, session: SessionDep):
+    """
+    Endpoint for deleting file
+
+    :param file_id:
+    :param session:
+    :return dict:
+    """
+
+    file_db = session.get(Document, file_id)
+    if not file_db:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Delete & Commit changes into db
+    session.delete(file_db)
+    session.commit()
+    return {"ok": True}
 
 
 @router.get('/folder-details', response_model=list[FolderPublic])
