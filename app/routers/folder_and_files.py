@@ -186,7 +186,38 @@ async def file_delete(file_id: int, session: SessionDep):
     return {"ok": True}
 
 
-@router.get('/folder-details', response_model=list[FolderPublic])
-async def folders(session: SessionDep, q: str | None = None):
-    all_folders = session.exec(select(Folder)).all()
-    return all_folders
+@router.get('/folder-details', response_model=dict[str, list[FolderPublic] | list[DocumentPublic]])
+@router.get('/folder-details/{folder_id}', response_model=dict[str, list[FolderPublic] | list[DocumentPublic]])
+async def folder_details(
+    session: SessionDep,
+    folder_id: int | None = None,
+    q: str | None = None
+):
+    """
+    Fetch folders and documents, with optional filtering by folder_id and search query.
+
+    :param session:
+    :param folder_id:
+    :param q:
+    :return dict:
+    """
+
+    # Base query
+    folder_query = select(Folder)
+    document_query = select(Document)
+
+    # Filter folders and files
+    folder_query = folder_query.where(Folder.parent_id == folder_id)
+    document_query = document_query.where(Document.folder_id == folder_id)
+
+    if q:  # Apply search filter
+        search_filter = f"%{q}%"
+
+        folder_query = folder_query.where(Folder.name.ilike(search_filter))
+        document_query = document_query.where(Document.name.ilike(search_filter))
+
+    # Execute queries
+    matching_folders = session.exec(folder_query).all()
+    matching_documents = session.exec(document_query).all()
+
+    return {"folders": matching_folders, "documents": matching_documents}
