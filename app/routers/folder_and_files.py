@@ -1,6 +1,7 @@
 import os
 import shutil
 import uuid
+from io import BytesIO
 from typing import Annotated
 
 from fastapi import APIRouter, UploadFile, Form, File, HTTPException
@@ -30,7 +31,19 @@ async def folder_upload(
     session: SessionDep,
     folder_id: int | None = None
 ):
-    return StreamingResponse(stream_progress(paths, files, session, folder_id))
+    # Eagerly read each file's content and create in-memory copies.
+    files_copies = []
+    for file in files:
+        content = await file.read()  # read the entire file
+        # Create a new BytesIO object to act as a file-like object.
+        file_copy = UploadFile(filename=file.filename, file=BytesIO(content))
+        files_copies.append(file_copy)
+
+    # Pass the file copies to your streaming generator.
+    return StreamingResponse(
+        stream_progress(paths, files_copies, session, folder_id),
+        media_type="text/event-stream"
+    )
 
 
 @router.post('/folder-create', response_model=FolderPublic)

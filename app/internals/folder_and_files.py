@@ -3,7 +3,7 @@ import json
 import os
 import shutil
 import uuid
-from select import select
+from sqlmodel import select
 
 from app.models.database.folder_and_files import Folder, Document
 
@@ -24,22 +24,21 @@ STAGES = {
 
 # Helper function to create a document
 async def create_document(file: UploadFile, session):
-    """
-    Creates a document entry and stores the file locally.
-    """
-    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+    base_file_name = os.path.basename(file.filename)
+    unique_filename = f"{uuid.uuid4()}_{base_file_name}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
-    # Save file locally
+    # Use the async read() on our in-memory file copy.
+    file_content = await file.read()
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(file_content)
 
-    new_file = Document(name=file.filename, file_url=file_path)
+    new_file = Document(name=base_file_name, file_url=file_path)
 
     # Add to session and commit
     session.add(new_file)
-    await session.commit()
-    await session.refresh(new_file)
+    session.commit()
+    session.refresh(new_file)
 
     return new_file
 
@@ -47,7 +46,7 @@ async def create_document(file: UploadFile, session):
 # Get folder by name and parent
 async def get_folder_by_name(session, name: str, parent_folder: int | None = None):
     statement = select(Folder).where(Folder.name == name, Folder.parent_id == parent_folder)
-    result = await session.exec(statement)
+    result =  session.exec(statement)
     return result.first()
 
 
@@ -101,6 +100,7 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
         documents = []
 
         for file in all_files:
+            base_file_name = os.path.basename(file.filename)
             try:
                 document = await create_document(file, session)
                 documents.append(document)
@@ -109,7 +109,7 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
                 # Yield progress
                 yield json.dumps({
                     "stage": STAGES['DOCUMENT_CREATION'],
-                    "message": f"Successfully created document: {file.filename}",
+                    "message": f"Successfully created document: {base_file_name}",
                     "created_count": created_count,
                     "valid_files_count": len(all_files)
                 }) + "\n"
@@ -117,10 +117,10 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
                 await asyncio.sleep(0.1)
 
             except Exception as e:
-                failed_files.append(file.filename)
+                failed_files.append(base_file_name)
                 yield json.dumps({
                     "stage": STAGES['DOCUMENT_CREATION'],
-                    "message": f"Failed to create document: {file.filename}",
+                    "message": f"Failed to create document: {base_file_name}",
                     "error": str(e)
                 }) + "\n"
                 await asyncio.sleep(0.1)
@@ -174,15 +174,16 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
 
                         folder = Folder(name=unique_name, parent_id=parent_folder.id if parent_folder else None)
                         session.add(folder)
-                        await session.commit()
-                        await session.refresh(folder)
+                        session.commit()
+                        session.refresh(folder)
 
                         folder_mapper[current_full_path] = folder
 
         # Update document-folder relationships
         yield json.dumps({"stage": STAGES['RELATION_UPDATE'], "message": "Updating document relationships"}) + "\n"
-        await asyncio.gather(*[session.merge(doc) for doc in documents_to_update])
-        await session.commit()
+        for doc in documents_to_update:
+            session.merge(doc)
+        session.commit()
 
         # Final response
         yield json.dumps({
