@@ -19,3 +19,12 @@ export interface FolderContents {
   folders: Folder[];
   documents: Document[];
 }
+
+export type ItemType = 'folder' | 'document';
+
+export interface SelectedItem {
+  type: ItemType;
+  id: number;
+  name: string;
+  parentId: number | null;
+}
