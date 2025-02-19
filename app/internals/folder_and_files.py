@@ -46,7 +46,7 @@ async def create_document(file: UploadFile, session):
 # Get folder by name and parent
 async def get_folder_by_name(session, name: str, parent_folder: int | None = None):
     statement = select(Folder).where(Folder.name == name, Folder.parent_id == parent_folder)
-    result =  session.exec(statement)
+    result = session.exec(statement)
     return result.first()
 
 
@@ -78,7 +78,7 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
 
         root_folder_path = ""
         if folder_id:
-            root_folder = await session.get(Folder, folder_id)
+            root_folder = session.get(Folder, folder_id)
             if not root_folder:
                 yield json.dumps({"stage": STAGES['ERROR'], "message": "Parent folder not found"}) + "\n"
                 return

@@ -123,7 +123,7 @@ async def folder_delete(folder_id: int, session: SessionDep):
 
 @router.post('/file-create', response_model=DocumentPublic)
 @router.post('/file-create/{folder_id}', response_model=DocumentPublic)
-async def file_create(file: UploadFile, session: SessionDep, folder_id: int | None = None):
+async def file_create(file: Annotated[UploadFile, File()], session: SessionDep, folder_id: int | None = None):
     """
     Endpoint for creating files
 
