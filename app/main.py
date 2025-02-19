@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from app.db import create_db_and_tables
 from app.models.database.folder_and_files import Folder, Document
 
-from .routers import file_folders
+from .routers import folder_and_files
 
 
 # Lifespan function
@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-app.include_router(file_folders.router)
+app.include_router(folder_and_files.router)
 
 
 @app.get('/', tags=['root'])
