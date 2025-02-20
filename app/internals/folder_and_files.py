@@ -6,7 +6,6 @@ import uuid
 from sqlmodel import select
 
 from models.database.folder_and_files import Folder, Document
-
 from fastapi import UploadFile
 
 UPLOAD_DIR = "uploads"
@@ -24,18 +23,27 @@ STAGES = {
 
 # Helper function to create a document
 async def create_document(file: UploadFile, session):
+    """
+    Helper function to create a document
+
+    :param file:
+    :param session:
+    :return DocumentPublic:
+    """
+
+    # Generating a unique filename to avoid conflicts
     base_file_name = os.path.basename(file.filename)
     unique_filename = f"{uuid.uuid4()}_{base_file_name}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
-    # Use the async read() on our in-memory file copy.
+    # Reading file contents as bytes to directly write in disk
     file_content = await file.read()
     with open(file_path, "wb") as buffer:
         buffer.write(file_content)
 
     new_file = Document(name=base_file_name, file_url=file_path)
 
-    # Add to session and commit
+    # Commit into db
     session.add(new_file)
     session.commit()
     session.refresh(new_file)
@@ -45,17 +53,40 @@ async def create_document(file: UploadFile, session):
 
 # Get folder by name and parent
 async def get_folder_by_name(session, name: str, parent_folder: int | None = None):
+    """
+    Get folder by name and parent for duplicate checking.
+
+    :param session:
+    :param name:
+    :param parent_folder:
+    :return Folder | None:
+    """
+
+    # Query
     statement = select(Folder).where(Folder.name == name, Folder.parent_id == parent_folder)
     result = session.exec(statement)
+
     return result.first()
 
 
 # Generate a unique folder name if one already exists
 async def get_unique_folder_name(session, name: str, parent_folder: int | None = None):
+    """
+    Helper function to generate a unique folder name if one already exists appending 
+    counter at the end of the folder name.
+
+    :param session:
+    :param name:
+    :param parent_folder:
+    :return str:
+    """
+
+    # Base name and counter for unique name
     base_name = name
     counter = 0
     current_name = base_name
 
+    # Loop until a unique name is found
     while await get_folder_by_name(session, current_name, parent_folder) is not None:
         counter += 1
         current_name = f"{base_name} ({counter})"
@@ -65,17 +96,30 @@ async def get_unique_folder_name(session, name: str, parent_folder: int | None =
 
 # Streaming function for file upload and folder structure creation
 async def stream_progress(paths: list[str], files: list[UploadFile], session, folder_id: int | None = None):
+    """
+    Main algorithm for file upload and folder structure creation preserving parent child
+    relationship.
+
+    :param paths:
+    :param files:
+    :param session:
+    :param folder_id:
+    :return StreamingResponse:
+    """
+
     try:
+        # Initial required variables
         all_files = files
         all_paths = paths
         folder_mapper = {}
         documents_to_update = []
         renamed_folders = []
 
-        # Determine root folder
+        # Determine root folder stage
         yield json.dumps({"stage": STAGES['FOLDER_STRUCTURE'], "message": "Determining root folder"}) + "\n"
         await asyncio.sleep(0.1)
 
+        # Set root folder path if folder_id is given
         root_folder_path = ""
         if folder_id:
             root_folder = session.get(Folder, folder_id)
@@ -85,13 +129,13 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
             root_folder_path = os.path.normpath(root_folder.name)
             folder_mapper[root_folder_path] = root_folder
 
-        # Normalize paths
+        # Normalize paths 
         normalized_paths = [
             os.path.normpath(f"{root_folder_path}/{path}") if root_folder_path else os.path.normpath(path)
             for path in all_paths
         ]
 
-        # Create documents
+        # Create documents stage
         yield json.dumps({"stage": STAGES['DOCUMENT_CREATION'], "message": "Creating documents"}) + "\n"
         await asyncio.sleep(0.1)
 
@@ -99,6 +143,7 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
         failed_files = []
         documents = []
 
+        # Create documents and stream progress by yielding progress
         for file in all_files:
             base_file_name = os.path.basename(file.filename)
             try:
@@ -125,11 +170,13 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
                 }) + "\n"
                 await asyncio.sleep(0.1)
 
+        # Document mapper to get documents by their relative paths inside the main algorithm.
         document_mapper = {path: doc for doc, path in zip(documents, normalized_paths)}
 
-        # Create folder structure
+        # Create folder structure stage.
         yield json.dumps({"stage": STAGES['FOLDER_STRUCTURE'], "message": "Creating folder structure"}) + "\n"
 
+        # Main algorithm to create folder structure and update documents relation with the folder structure.
         for full_path in normalized_paths:
 
             path_parts = []
@@ -179,7 +226,7 @@ async def stream_progress(paths: list[str], files: list[UploadFile], session, fo
 
                         folder_mapper[current_full_path] = folder
 
-        # Update document-folder relationships
+        # Update document-folder relationships stage
         yield json.dumps({"stage": STAGES['RELATION_UPDATE'], "message": "Updating document relationships"}) + "\n"
         for doc in documents_to_update:
             session.merge(doc)

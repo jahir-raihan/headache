@@ -31,15 +31,25 @@ async def folder_upload(
     session: SessionDep,
     folder_id: int | None = None
 ):
-    # Read each file's content and create in-memory copies.
+    """
+    Endpoint for uploading a folder and its contents preserving hierarchy and folder structure.
+
+    :param paths:
+    :param files:
+    :param session:
+    :param folder_id:
+    :return StreamingResponse:
+    """
+
+    # Read each file's content and creating in memory copies.
     files_copies = []
     for file in files:
-        content = await file.read()  # read the entire file
+        content = await file.read() 
         # A new BytesIO object to act as a file-like object.
         file_copy = UploadFile(filename=file.filename, file=BytesIO(content))
         files_copies.append(file_copy)
 
-    # Passing new copies instead of original list to avoid I/O error.
+    # Streaming part
     return StreamingResponse(
         stream_progress(paths, files_copies, session, folder_id),
         media_type="text/event-stream"
