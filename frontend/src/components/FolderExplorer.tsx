@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/axios';
-import { FolderContents, Folder, Document, SelectedItem } from '@/types/folder';
+import { FolderContents, SelectedItem } from '@/types/folder';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder, faFile, faChevronLeft, faMagnifyingGlass, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faFolder, faFile, faChevronLeft, faPlus } from '@fortawesome/free-solid-svg-icons';
 import RenameDialog from './dialogs/RenameDialog';
 import MoveDialog from './dialogs/MoveDialog';
 import DeleteDialog from './dialogs/DeleteDialog';
@@ -17,8 +17,6 @@ interface FolderExplorerProps {
   currentFolder: number | null;
   onFolderChange: (folderId: number | null) => void;
 }
-
-
 
 export default function FolderExplorer({ currentFolder, onFolderChange }: FolderExplorerProps) {
   const [folderPath, setFolderPath] = useState<{ id: number | null; name: string }[]>([
@@ -45,11 +43,7 @@ export default function FolderExplorer({ currentFolder, onFolderChange }: Folder
   const [newFolderName, setNewFolderName] = useState('');
   const [createFileDialogOpen, setCreateFileDialogOpen] = useState(false);
 
-  useEffect(() => {
-    fetchFolderContents();
-  }, [currentFolder, searchQuery]);
-
-  const fetchFolderContents = async () => {
+  const fetchFolderContents = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await api.get(`/folder-details/${currentFolder || ''}${
@@ -61,7 +55,11 @@ export default function FolderExplorer({ currentFolder, onFolderChange }: Folder
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentFolder, searchQuery]);
+
+  useEffect(() => {
+    fetchFolderContents();
+  }, [fetchFolderContents]);
 
   const navigateToFolder = (folderId: number | null, folderName: string) => {
     onFolderChange(folderId);

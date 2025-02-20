@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, InputHTMLAttributes, HTMLAttributes } from 'react';
+import { useState, useRef,  HTMLAttributes } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCloudArrowUp } from '@fortawesome/free-solid-svg-icons';
 import api from '@/lib/axios';

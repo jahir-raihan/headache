@@ -25,7 +25,7 @@ export default function DeleteDialog({
             Delete {selectedItem?.type}
           </AlertDialog.Title>
           <AlertDialog.Description className="text-sm text-gray-500">
-            Are you sure you want to delete "{selectedItem?.name}"? This action cannot be undone.
+            Are you sure you want to delete &quot;{selectedItem?.name}&quot;? This action cannot be undone.
           </AlertDialog.Description>
           <div className="flex justify-end space-x-2">
             <AlertDialog.Cancel asChild>
