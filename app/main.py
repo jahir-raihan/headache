@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from app.db import create_db_and_tables
-from app.models.database.folder_and_files import Folder, Document
+from .db import create_db_and_tables
+from .models.database.folder_and_files import Folder, Document
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import folder_and_files
