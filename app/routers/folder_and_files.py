@@ -8,11 +8,11 @@ from fastapi import APIRouter, UploadFile, Form, File, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import select
 
-from app.db import SessionDep
-from app.models.database.folder_and_files import Folder, Document
-from app.models.public.folder_and_files import FolderPublic, FolderCreate, FolderUpdate, DocumentCreate, DocumentPublic, \
+from db import SessionDep
+from models.database.folder_and_files import Folder, Document
+from models.public.folder_and_files import FolderPublic, FolderCreate, FolderUpdate, DocumentCreate, DocumentPublic, \
     DocumentUpdate
-from app.internals.folder_and_files import stream_progress
+from internals.folder_and_files import stream_progress
 
 router = APIRouter(
     tags=['folder_upload']

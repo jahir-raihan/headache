@@ -1,6 +1,6 @@
 from typing import Optional
 from sqlmodel import Field, Relationship
-from app.models.public.folder_and_files import FolderBase, DocumentBase
+from models.public.folder_and_files import FolderBase, DocumentBase
 
 
 class Folder(FolderBase, table=True):
