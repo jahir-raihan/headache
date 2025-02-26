@@ -8,11 +8,11 @@ from fastapi import APIRouter, UploadFile, Form, File, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import select
 
-from db import SessionDep
-from models.database.folder_and_files import Folder, Document
-from models.public.folder_and_files import FolderPublic, FolderCreate, FolderUpdate, DocumentCreate, DocumentPublic, \
+from ..db import SessionDep
+from ..models.database.folder_and_files import Folder, Document
+from ..models.public.folder_and_files import FolderPublic, FolderCreate, FolderUpdate, DocumentCreate, DocumentPublic, \
     DocumentUpdate
-from internals.folder_and_files import stream_progress
+from ..internals.folder_and_files import stream_progress
 
 router = APIRouter(
     tags=['folder_upload']
@@ -98,6 +98,9 @@ async def folder_update(folder_id: int, folder_data: FolderUpdate, session: Sess
     folder_db = session.get(Folder, folder_id)
     if not folder_db:
         raise HTTPException(status_code=404, detail="Folder not found")
+
+    if folder_id == folder_data.parent_id:
+        raise HTTPException(400, "Can't reference folder itself!")
 
     # Dump and serialize updated data
     update_data = folder_data.model_dump(exclude_unset=True)
@@ -227,6 +230,12 @@ async def folder_details(
     :param q:
     :return dict:
     """
+    
+    # Root folder check
+    if folder_id:
+        root_folder = session.get(Folder, folder_id)
+        if not root_folder:
+            raise HTTPException(404, "Folder not found!")
 
     # Base query
     folder_query = select(Folder)

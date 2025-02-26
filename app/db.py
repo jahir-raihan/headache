@@ -1,7 +1,7 @@
 from sqlmodel import Session, create_engine, SQLModel
 from fastapi import Depends
 from typing import Generator, Annotated
-from models.database.folder_and_files import Folder, Document
+from .models.database.folder_and_files import Folder, Document
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"

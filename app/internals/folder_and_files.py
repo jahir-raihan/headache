@@ -5,7 +5,7 @@ import shutil
 import uuid
 from sqlmodel import select
 
-from models.database.folder_and_files import Folder, Document
+from ..models.database.folder_and_files import Folder, Document
 from fastapi import UploadFile
 
 UPLOAD_DIR = "uploads"
