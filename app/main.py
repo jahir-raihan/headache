@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     # Yield control back to FastAPI
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 # Cors config
 origins = [
